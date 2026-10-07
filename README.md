@@ -2,6 +2,20 @@
 
 Atualiza o dicionário do Protheus (SX2, SX3 e SIX) a partir de um arquivo JSON.
 
+## Telas
+
+O caminho do JSON pode ser absoluto, se estiver dentro do Protheus Data, ou relativo a essa pasta.
+
+![Tela do arquivo JSON](imagens/print-arquivo.png)
+
+Marque a empresa e processe.
+
+![Seleção da empresa](imagens/print-empresas.png)
+
+No fim, a rotina mostra o que foi incluído, o que mudou e o que já estava igual.
+
+![Resumo da atualização](imagens/print-resumo.png)
+
 ![Do arquivo JSON ate o banco](imagens/fluxo-upddic.jpg)
 
 | Arquivo | Conteúdo |

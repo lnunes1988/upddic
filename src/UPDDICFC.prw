@@ -39,6 +39,8 @@ User Function UPDDIC(cArquivo, cEmpAmb, cFilAmb)
     Private nCpoIgu  := 0
     Private nIndInc  := 0
     Private nIndAlt  := 0
+    Private aJsonTab := {}
+    Private aJsonCpo := {}
 
     Default cArquivo := ""
     Default cEmpAmb  := ""
@@ -96,11 +98,26 @@ User Function UPDDIC(cArquivo, cEmpAmb, cFilAmb)
     cMsg := DicResumo()
     If lAuto
         ConOut(cMsg)
-    ElseIf lOk
-        MsgInfo(cMsg, "UPDDIC")
     Else
-        MsgStop(cMsg, "UPDDIC")
+        DicFim(cMsg, lOk)
     EndIf
+
+Return Nil
+
+//--------------------------------------------------------------------
+Static Function DicFim(cMsg, lOk)
+
+    Local cTit := IIf(lOk, "Atualizacao concluida", "Atualizacao com erro")
+    Local cTxt := cMsg
+    Local oDlg
+    Local oGet
+
+    Define MsDialog oDlg Title cTit From 0, 0 To 220, 360 Pixel
+
+    @ 08, 10 Get oGet Var cTxt Memo Size 160, 80 Of oDlg Pixel When .F.
+    @ 96, 130 Button "Ok" Size 30, 12 Pixel Of oDlg Action (oDlg:End())
+
+    Activate MsDialog oDlg Center
 
 Return Nil
 
@@ -117,8 +134,8 @@ Static Function DicProc(lEnd, aMarcadas, oJson, cArquivo)
     Local nJ      := 0
     Local oErro   := Nil
 
-    aTabs   := DicArr(oJson, "tabelas")
-    aCampos := DicArr(oJson, "campos")
+    aTabs   := aJsonTab
+    aCampos := aJsonCpo
 
     For nI := 1 To Len(aMarcadas)
 
@@ -649,6 +666,24 @@ Static Function DicFisico()
 Return !lX31Erro
 
 //--------------------------------------------------------------------
+Static Function DicPath(cArquivo)
+
+    Local cNorm := StrTran(AllTrim(cArquivo), "/", "\")
+    Local cRoot := AllTrim(GetSrvProfString("RootPath", ""))
+
+    cRoot := StrTran(cRoot, "/", "\")
+    If !Empty(cRoot) .And. Right(cRoot, 1) == "\"
+        cRoot := Left(cRoot, Len(cRoot) - 1)
+    EndIf
+
+    // Caminho absoluto dentro do Protheus Data vira caminho relativo, que o File() enxerga.
+    If !Empty(cRoot) .And. Upper(cNorm) = (Upper(cRoot) + "\")
+        cNorm := SubStr(cNorm, Len(cRoot) + 1)
+    EndIf
+
+Return cNorm
+
+//--------------------------------------------------------------------
 Static Function DicLoad(cArquivo, cMsg)
 
     Local cErr  := ""
@@ -658,14 +693,26 @@ Static Function DicLoad(cArquivo, cMsg)
     Local oJson := Nil
 
     cMsg := ""
+    cArquivo := DicPath(AllTrim(cArquivo))
 
     If File(cArquivo)
         cJson := MemoRead(cArquivo)
-    ElseIf FindFunction("CpyT2S")
-        cSrv := CpyT2S(cArquivo, .F.)
-        If !Empty(cSrv) .And. File(cSrv)
-            cJson := MemoRead(cSrv)
-            FErase(cSrv)
+    EndIf
+
+    // File() no WebApp as vezes nao ve caminho absoluto que o MemoRead le no servidor.
+    If Empty(cJson) .And. (":" $ cArquivo .Or. Left(cArquivo, 1) $ "\/")
+        cJson := MemoRead(cArquivo)
+    EndIf
+
+    // CpyT2S(arquivo na estacao, pasta no servidor) devolve logico.
+    If Empty(cJson) .And. FindFunction("CpyT2S")
+        cSrv := "\system\"
+        If CpyT2S(cArquivo, cSrv, .F., .F.)
+            cSrv += SubStr(cArquivo, RAt("\", StrTran(cArquivo, "/", "\")) + 1)
+            If File(cSrv)
+                cJson := MemoRead(cSrv)
+                FErase(cSrv)
+            EndIf
         EndIf
     EndIf
 
@@ -700,7 +747,16 @@ Static Function DicLoad(cArquivo, cMsg)
         Return Nil
     EndIf
 
-    If Len(DicArr(oJson, "tabelas")) == 0 .And. Len(DicArr(oJson, "campos")) == 0
+    aJsonTab := oJson:GetJsonObject("tabelas")
+    aJsonCpo := oJson:GetJsonObject("campos")
+    If ValType(aJsonTab) != "A"
+        aJsonTab := {}
+    EndIf
+    If ValType(aJsonCpo) != "A"
+        aJsonCpo := {}
+    EndIf
+
+    If Len(aJsonTab) == 0 .And. Len(aJsonCpo) == 0
         cMsg := "O JSON precisa ter a lista tabelas, a lista campos, ou as duas."
         Return Nil
     EndIf
@@ -718,12 +774,13 @@ Static Function DicArr(oPai, cNome)
     Local oItem := Nil
     Local xArr  := Nil
 
-    If ValType(oPai) != "O" .Or. !oPai:HasProperty(cNome)
+    If !DicObj(oPai)
         Return aRet
     EndIf
 
     xArr := oPai:GetJsonObject(cNome)
 
+    // Devolve o array original. O item do JSON e tipo J e nao sobrevive a uma copia.
     If ValType(xArr) == "A"
         Return xArr
     EndIf
@@ -739,31 +796,44 @@ Static Function DicArr(oPai, cNome)
         nFim := 0
     End Sequence
 
-    If nFim <= 0
+    If nFim > 0
+        oItem := oArr:GetJsonObject(0)
+        If ValType(oItem) == "U" .Or. oItem == Nil
+            nIni := 1
+        Else
+            nIni := 0
+            nFim := nFim - 1
+        EndIf
+
+        For nI := nIni To nFim
+            oItem := oArr:GetJsonObject(nI)
+            If DicObj(oItem)
+                aAdd(aRet, oItem)
+            EndIf
+        Next nI
         Return aRet
     EndIf
 
+    // Length() nem sempre existe neste JsonObject. Percorre ate o item vazio.
     oItem := oArr:GetJsonObject(0)
-    If ValType(oItem) == "U" .Or. oItem == Nil
-        nIni := 1
-        nFim := nFim
-    Else
-        nIni := 0
-        nFim := nFim - 1
-    EndIf
-
-    For nI := nIni To nFim
+    nIni := IIf(DicObj(oItem), 0, 1)
+    For nI := nIni To nIni + 499
         oItem := oArr:GetJsonObject(nI)
-        If ValType(oItem) == "O"
-            aAdd(aRet, oItem)
+        If ValType(oItem) != "O"
+            Exit
         EndIf
+        aAdd(aRet, oItem)
     Next nI
 
 Return aRet
 
 //--------------------------------------------------------------------
+Static Function DicObj(xVal)
+Return ValType(xVal) $ "OJ"
+
+//--------------------------------------------------------------------
 Static Function DicTem(oObj, cNome)
-Return ValType(oObj) == "O" .And. oObj:HasProperty(cNome)
+Return DicObj(oObj) .And. oObj:HasProperty(cNome)
 
 //--------------------------------------------------------------------
 Static Function DicJStr(oObj, cNome, cPad)
