@@ -1,0 +1,80 @@
+{
+  "tabelas": [
+    {
+      "alias": "ZZ1",
+      "nome": "Procuradores (Aprv. Bordero)",
+      "modo": "C",
+      "modoEmp": "E",
+      "modoUn": "E",
+      "campos": [
+        {
+          "campo": "ZZ1_FILIAL",
+          "tipo": "C",
+          "tamanho": 8,
+          "titulo": "Filial",
+          "descricao": "Filial do Sistema",
+          "picture": "@!",
+          "grupo": "033",
+          "nivel": 1
+        },
+        {
+          "campo": "ZZ1_COD",
+          "tipo": "C",
+          "tamanho": 4,
+          "titulo": "Codigo Apr.",
+          "descricao": "Codigo do aprovador",
+          "browse": "S",
+          "propri": "U",
+          "obrigatorio": "x",
+          "relacao": "GETSXENUM('ZZ1', 'ZZ1_COD')"
+        },
+        {
+          "campo": "ZZ1_STATUS",
+          "tipo": "C",
+          "tamanho": 1,
+          "titulo": "Status Aprv",
+          "descricao": "Status do aprovador",
+          "combo": "A=Ativo;B=Bloqueado",
+          "propri": "U",
+          "obrigatorio": "x"
+        }
+      ],
+      "indices": [
+        {
+          "ordem": "1",
+          "chave": "ZZ1_FILIAL+ZZ1_CODUSR",
+          "descricao": "Codigo Usr.",
+          "propri": "U",
+          "showPesq": "S"
+        },
+        {
+          "ordem": "2",
+          "chave": "ZZ1_FILIAL+ZZ1_COD",
+          "descricao": "Codigo Apr.",
+          "propri": "U",
+          "showPesq": "N"
+        }
+      ]
+    }
+  ],
+  "campos": [
+    {
+      "arquivo": "SEA",
+      "campo": "EA_XSTATUS",
+      "tipo": "C",
+      "tamanho": 1,
+      "titulo": "Status (Pix)",
+      "descricao": "Status (Pix)",
+      "propri": "U"
+    },
+    {
+      "arquivo": "SEA",
+      "campo": "EA_XVERBOR",
+      "tipo": "C",
+      "tamanho": 3,
+      "titulo": "Versao Bord",
+      "descricao": "Versao Bordero (Pix)",
+      "propri": "U"
+    }
+  ]
+}
