@@ -27,6 +27,8 @@ Programa de menu: `U_UPDDIC`.
 
 Na tela, Continuar só avança se o caminho estiver preenchido. A empresa se marca com duplo clique na linha, ou com Marcar. Sem empresa marcada, Processar avisa e não fecha a tela.
 
+Com tela, depois da empresa vem a revisão do JSON (tabelas, campos e índices) e a confirmação. Cancelar em qualquer uma das duas interrompe sem gravar. O job pula essas telas. A barra de progresso mostra o alias, o campo e o índice em execução.
+
 O arquivo precisa ser lido pelo AppServer. Se o caminho estiver na máquina do SmartClient e o servidor não enxergar, a rotina copia com `CpyT2S` e apaga a cópia depois da leitura. Caminho vazio ou JSON ilegível interrompe antes de abrir a empresa.
 
 O JSON precisa ter a lista `tabelas`, a lista `campos`, ou as duas.

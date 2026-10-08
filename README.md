@@ -12,6 +12,8 @@ Marque a empresa e processe.
 
 ![Seleção da empresa](imagens/print-empresas.png)
 
+Antes de gravar, a rotina mostra o que o JSON descreve (tabelas, campos e índices) e pede confirmação.
+
 No fim, a rotina mostra o que foi incluído, o que mudou e o que já estava igual.
 
 ![Resumo da atualização](imagens/print-resumo.png)

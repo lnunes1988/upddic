@@ -92,6 +92,15 @@ User Function UPDDIC(cArquivo, cEmpAmb, cFilAmb)
         Return Nil
     EndIf
 
+    If !lAuto
+        If !DicPrevTela(aMarcadas, cArquivo)
+            Return Nil
+        EndIf
+        If !DicConfirma(aMarcadas, cArquivo)
+            Return Nil
+        EndIf
+    EndIf
+
     oProc := MsNewProcess():New({|lEnd| lOk := DicProc(lEnd, aMarcadas, oJson, cArquivo) }, "Atualizando", "Aguarde, atualizando dicionario...", .F.)
     oProc:Activate()
 
@@ -105,17 +114,245 @@ User Function UPDDIC(cArquivo, cEmpAmb, cFilAmb)
 Return Nil
 
 //--------------------------------------------------------------------
+Static Function DicPrevTela(aMarcadas, cArquivo)
+
+    Local nDlgAlt := 900
+    Local nDlgLar := 1860
+    Local aResolucao := {}
+    Local nEscala := 2
+    Local nTelaAlt := 0
+    Local nTelaLar := 0
+    Local nPctAlt := 0.85
+    Local nPctLar := 0.90
+    Local nMargem := 10
+    Local nAltCtrl := 10
+    Local nGapVert := 4
+    Local nLargCtrl := 0
+    Local nYArquivo := 0
+    Local nYResumo := 0
+    Local nYNota := 0
+    Local nYLista := 0
+    Local nYBotoes := 0
+    Local nAltLista := 0
+    Local nLargBotao := 45
+    Local nGapBotao := 6
+    Local nXCancelar := 0
+    Local nXContinuar := 0
+    Local aItens  := {}
+    Local aCampos := {}
+    Local aInd    := {}
+    Local cVar    := ""
+    Local cResumo := ""
+    Local cAlias  := ""
+    Local cNome   := ""
+    Local cCampo  := ""
+    Local cTipo   := ""
+    Local cTam    := ""
+    Local nTotCpo := 0
+    Local nTotInd := 0
+    Local nI      := 0
+    Local nJ      := 0
+    Local lOk     := .F.
+    Local oDlg
+    Local oLbx
+
+    For nI := 1 To Len(aMarcadas)
+        aAdd(aItens, { "Destino", "Empresa " + AllTrim(cValToChar(aMarcadas[nI][1])), "Filial " + AllTrim(cValToChar(aMarcadas[nI][2])) })
+    Next nI
+
+    For nI := 1 To Len(aJsonTab)
+        cAlias := Upper(AllTrim(DicJStr(aJsonTab[nI], "alias")))
+        cNome  := DicJStr(aJsonTab[nI], "nome")
+        aCampos := DicArr(aJsonTab[nI], "campos")
+        aInd := DicArr(aJsonTab[nI], "indices")
+        nTotCpo += Len(aCampos)
+        nTotInd += Len(aInd)
+        aAdd(aItens, { "Tabela", cAlias, cNome + " | " + cValToChar(Len(aCampos)) + " campos | " + cValToChar(Len(aInd)) + " indices" })
+
+        For nJ := 1 To Len(aCampos)
+            cCampo := Upper(AllTrim(DicJStr(aCampos[nJ], "campo")))
+            cTipo := DicJStr(aCampos[nJ], "tipo")
+            cTam := DicJStr(aCampos[nJ], "tamanho")
+            aAdd(aItens, { "Campo", cAlias + "." + cCampo, "Tipo " + cTipo + " | Tamanho " + cTam })
+        Next nJ
+
+        For nJ := 1 To Len(aInd)
+            aAdd(aItens, { "Indice", cAlias + " / " + DicJStr(aInd[nJ], "ordem"), DicJStr(aInd[nJ], "chave") })
+        Next nJ
+    Next nI
+
+    For nI := 1 To Len(aJsonCpo)
+        cAlias := Upper(AllTrim(DicJStr(aJsonCpo[nI], "arquivo")))
+        cCampo := Upper(AllTrim(DicJStr(aJsonCpo[nI], "campo")))
+        cTipo := DicJStr(aJsonCpo[nI], "tipo")
+        cTam := DicJStr(aJsonCpo[nI], "tamanho")
+        nTotCpo++
+        aAdd(aItens, { "Campo avulso", cAlias + "." + cCampo, "Tipo " + cTipo + " | Tamanho " + cTam })
+    Next nI
+
+    cResumo := "Tabelas: " + cValToChar(Len(aJsonTab))
+    cResumo += "    Campos: " + cValToChar(nTotCpo)
+    cResumo += "    Indices: " + cValToChar(nTotInd)
+    cResumo += "    Destinos: " + cValToChar(Len(aMarcadas))
+
+    Begin Sequence
+        aResolucao := GetScreenRes()
+        If ValType(aResolucao) == "A" .And. Len(aResolucao) >= 2
+            nTelaLar := aResolucao[1]
+            nTelaAlt := aResolucao[2]
+            If nTelaLar > 0 .And. nTelaAlt > 0
+                nDlgLar := Min(nDlgLar, Int(nTelaLar * nPctLar))
+                nDlgAlt := Min(nDlgAlt, Int(nTelaAlt * nPctAlt))
+            EndIf
+        EndIf
+    Recover
+        nTelaLar := 0
+        nTelaAlt := 0
+    End Sequence
+
+    nLargCtrl := (nDlgLar / nEscala) - (2 * nMargem)
+    nYArquivo := nMargem
+    nYResumo := nYArquivo + nAltCtrl + nGapVert
+    nYNota := nYResumo + nAltCtrl + nGapVert
+    nYLista := nYNota + nAltCtrl + nGapVert
+    nYBotoes := (nDlgAlt / nEscala) - nMargem - nAltCtrl
+    nAltLista := nYBotoes - nYLista - nMargem
+    nXCancelar := (nDlgLar / nEscala) - nMargem - nLargBotao
+    nXContinuar := nXCancelar - nGapBotao - nLargBotao
+    Define MsDialog oDlg Title "Revisao dos dados" From 0, 0 To nDlgAlt, nDlgLar Pixel
+
+    @ nYArquivo, nMargem Say "Arquivo: " + AllTrim(cArquivo) Size nLargCtrl, nAltCtrl Of oDlg Pixel
+    @ nYResumo, nMargem Say cResumo Size nLargCtrl, nAltCtrl Of oDlg Pixel
+    @ nYNota, nMargem Say "Itens do JSON; inclusoes e alteracoes serao identificadas durante a execucao." Size nLargCtrl, nAltCtrl Of oDlg Pixel
+    @ nYLista, nMargem Listbox oLbx Var cVar Fields Header "Tipo", "Tabela / campo", "Detalhes" Size nLargCtrl, nAltLista Of oDlg Pixel
+    oLbx:SetArray(aItens)
+    oLbx:bLine := {|| { aItens[oLbx:nAt][1], aItens[oLbx:nAt][2], aItens[oLbx:nAt][3] } }
+
+    @ nYBotoes, nXContinuar Button "Continuar" Size nLargBotao, nAltCtrl Pixel Of oDlg Action {|| lOk := .T., oDlg:End() }
+    @ nYBotoes, nXCancelar Button "Cancelar" Size nLargBotao, nAltCtrl Pixel Of oDlg Action (oDlg:End())
+
+    Activate MsDialog oDlg Center
+
+Return lOk
+
+//--------------------------------------------------------------------
+Static Function DicLimitaResol(nDlgAlt, nDlgLar, nPctAlt, nPctLar)
+
+    Local aResolucao := {}
+    Local nTelaAlt   := 0
+    Local nTelaLar   := 0
+
+    Begin Sequence
+        aResolucao := GetScreenRes()
+        If ValType(aResolucao) == "A" .And. Len(aResolucao) >= 2
+            nTelaLar := aResolucao[1]
+            nTelaAlt := aResolucao[2]
+            If nTelaLar > 0 .And. nTelaAlt > 0
+                nDlgLar := Min(nDlgLar, Int(nTelaLar * nPctLar))
+                nDlgAlt := Min(nDlgAlt, Int(nTelaAlt * nPctAlt))
+            EndIf
+        EndIf
+    Recover
+        nTelaAlt := 0
+        nTelaLar := 0
+    End Sequence
+
+Return { nDlgAlt, nDlgLar, nTelaLar, nTelaAlt }
+
+//--------------------------------------------------------------------
+Static Function DicConfirma(aMarcadas, cArquivo)
+
+    Local nDlgAlt := 300
+    Local nDlgLar := 620
+    Local nEscala := 2
+    Local nMargem := 10
+    Local nAltCtrl := 10
+    Local nGapVert := 4
+    Local nLargCtrl := 0
+    Local nYAviso := 0
+    Local nYTexto := 0
+    Local nYBotoes := 0
+    Local nAltTexto := 0
+    Local nLargBotao := 65
+    Local nGapBotao := 8
+    Local nXExecutar := 0
+    Local nXCancelar := 0
+    Local aDim := {}
+    Local cTexto := ""
+    Local lOk := .F.
+    Local nI := 0
+    Local nInd := 0
+    Local aInd := {}
+    Local oDlg
+    Local oGet
+
+    For nI := 1 To Len(aJsonTab)
+        aInd := DicArr(aJsonTab[nI], "indices")
+        nInd += Len(aInd)
+    Next nI
+
+    cTexto := "Arquivo: " + AllTrim(cArquivo) + CRLF
+    cTexto += "Tabelas: " + cValToChar(Len(aJsonTab)) + CRLF
+    cTexto += "Campos avulsos: " + cValToChar(Len(aJsonCpo)) + CRLF
+    cTexto += "Indices: " + cValToChar(nInd) + CRLF + CRLF
+    cTexto += "Destinos: " + cValToChar(Len(aMarcadas)) + " empresa(s)/filial(is)" + CRLF + CRLF
+    cTexto += "A rotina gravara SX2, SX3 e SIX. Alteracoes estruturais podem atualizar as tabelas no banco."
+
+    aDim := DicLimitaResol(nDlgAlt, nDlgLar, 0.85, 0.90)
+    nDlgAlt := aDim[1]
+    nDlgLar := aDim[2]
+    nLargCtrl := Int(nDlgLar / nEscala) - (2 * nMargem)
+    nYAviso := nMargem
+    nYTexto := nYAviso + nAltCtrl + nGapVert
+    nYBotoes := Int(nDlgAlt / nEscala) - nMargem - nAltCtrl
+    nAltTexto := nYBotoes - nYTexto - nMargem
+    nXCancelar := Int(nDlgLar / nEscala) - nMargem - nLargBotao
+    nXExecutar := nXCancelar - nGapBotao - nLargBotao
+
+    Define MsDialog oDlg Title "Confirmar execucao" From 0, 0 To nDlgAlt, nDlgLar Pixel
+
+    @ nYAviso, nMargem Say "A atualizacao ainda nao foi iniciada." Size nLargCtrl, nAltCtrl Of oDlg Pixel
+    @ nYTexto, nMargem Get oGet Var cTexto Memo Size nLargCtrl, nAltTexto Of oDlg Pixel When .F.
+    @ nYBotoes, nXExecutar Button "Executar" Size nLargBotao, nAltCtrl Pixel Of oDlg Action {|| lOk := .T., oDlg:End() }
+    @ nYBotoes, nXCancelar Button "Cancelar" Size nLargBotao, nAltCtrl Pixel Of oDlg Action (oDlg:End())
+
+    Activate MsDialog oDlg Center
+
+Return lOk
+
+//--------------------------------------------------------------------
 Static Function DicFim(cMsg, lOk)
 
+    Local nDlgAlt := 300
+    Local nDlgLar := 620
+    Local nEscala := 2
+    Local nMargem := 10
+    Local nAltCtrl := 10
+    Local nLargCtrl := 0
+    Local nYTexto := 0
+    Local nYBotao := 0
+    Local nAltTexto := 0
+    Local nLargBotao := 45
+    Local nXBotao := 0
+    Local aDim := {}
     Local cTit := IIf(lOk, "Atualizacao concluida", "Atualizacao com erro")
     Local cTxt := cMsg
     Local oDlg
     Local oGet
 
-    Define MsDialog oDlg Title cTit From 0, 0 To 220, 360 Pixel
+    aDim := DicLimitaResol(nDlgAlt, nDlgLar, 0.85, 0.90)
+    nDlgAlt := aDim[1]
+    nDlgLar := aDim[2]
+    nLargCtrl := Int(nDlgLar / nEscala) - (2 * nMargem)
+    nYTexto := nMargem
+    nYBotao := Int(nDlgAlt / nEscala) - nMargem - nAltCtrl
+    nAltTexto := nYBotao - nYTexto - nMargem
+    nXBotao := Int((Int(nDlgLar / nEscala) - nLargBotao) / 2)
 
-    @ 08, 10 Get oGet Var cTxt Memo Size 160, 80 Of oDlg Pixel When .F.
-    @ 96, 130 Button "Ok" Size 30, 12 Pixel Of oDlg Action (oDlg:End())
+    Define MsDialog oDlg Title cTit From 0, 0 To nDlgAlt, nDlgLar Pixel
+
+    @ nYTexto, nMargem Get oGet Var cTxt Memo Size nLargCtrl, nAltTexto Of oDlg Pixel When .F.
+    @ nYBotao, nXBotao Button "Ok" Size nLargBotao, nAltCtrl Pixel Of oDlg Action (oDlg:End())
 
     Activate MsDialog oDlg Center
 
@@ -132,10 +369,14 @@ Static Function DicProc(lEnd, aMarcadas, oJson, cArquivo)
     Local lRet    := .T.
     Local nI      := 0
     Local nJ      := 0
+    Local nTotTab := 0
+    Local nTotCpo := 0
     Local oErro   := Nil
 
     aTabs   := aJsonTab
     aCampos := aJsonCpo
+    nTotTab := Len(aTabs)
+    nTotCpo := Len(aCampos)
 
     For nI := 1 To Len(aMarcadas)
 
@@ -171,12 +412,12 @@ Static Function DicProc(lEnd, aMarcadas, oJson, cArquivo)
 
             oProc:SetRegua1(4)
 
-            oProc:IncRegua1("Tabelas")
+            oProc:IncRegua1("Tabelas (" + cValToChar(nTotTab) + ")")
             For nJ := 1 To Len(aTabs)
                 DicTab(aTabs[nJ])
             Next nJ
 
-            oProc:IncRegua1("Campos")
+            oProc:IncRegua1("Campos (" + cValToChar(nTotCpo) + ")")
             DicCampos(aCampos, "")
 
             oProc:IncRegua1("Estrutura fisica")
@@ -212,6 +453,11 @@ Static Function DicTab(oTab)
         AutoGrLog("Alias invalido [" + cAlias + "]. Use 3 caracteres.")
         lX31Erro := .T.
         Return Nil
+    EndIf
+
+    If ValType(oProc) == "O"
+        oProc:SetRegua2(1)
+        oProc:IncRegua2("Tabela: " + cAlias)
     EndIf
 
     DbSelectArea("SX2")
@@ -297,7 +543,6 @@ Static Function DicCampos(aCampos, cAliasPad)
 
     oProc:SetRegua2(Max(Len(aCampos), 1))
     For nI := 1 To Len(aCampos)
-        oProc:IncRegua2("Campos")
         DicCampo(aCampos[nI], cAliasPad)
     Next nI
 
@@ -331,6 +576,10 @@ Static Function DicCampo(oCpo, cAliasPad)
         AutoGrLog("Campo ignorado. Alias [" + cAlias + "] campo [" + cCampo + "].")
         lX31Erro := .T.
         Return Nil
+    EndIf
+
+    If ValType(oProc) == "O"
+        oProc:IncRegua2("Campo: " + cAlias + "." + cCampo)
     EndIf
 
     DbSelectArea("SX3")
@@ -493,7 +742,9 @@ Static Function DicIndices(aInd, cAlias)
 
     Local nI := 0
 
+    oProc:SetRegua2(Max(Len(aInd), 1))
     For nI := 1 To Len(aInd)
+        oProc:IncRegua2("Indice " + cAlias + " / " + AllTrim(DicJStr(aInd[nI], "ordem", cValToChar(nI))))
         DicIndice(aInd[nI], cAlias)
     Next nI
 
